@@ -1,5 +1,5 @@
 # About
-This is a collection of my personal apparmor profiles. 
+This is a collection of my personal apparmor profiles, some depending on Krathalan's profiles and abstractions.
 They are desinged to be customized via local profiles, 
 if problems arise feel free to provide feedback.
 My goal is to have a fully constraint system since Archlinux 

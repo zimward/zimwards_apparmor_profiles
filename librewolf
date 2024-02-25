@@ -1,0 +1,178 @@
+# AppArmor profile for librewolf browser
+# Version of librewolf profiled: 114.0b4
+# This profile should work on Developer Edition and Nightly as well
+# Homepage: https://github.com/krathalan/apparmor-profiles
+# Copyright 2019-2023 (C) krathalan, mortezadadgar; Licensed under GPLv3
+
+# Forked from https://gitlab.com/madaidan/apparmor-profiles, provided without
+# license
+
+abi <abi/3.0>,
+include <tunables/global>
+
+profile librewolf /{usr/bin,usr/lib/librewolf*}/librewolf* {
+  include <abstractions/consoles>
+  include <abstractions/audio>
+  include <abstractions/base>
+  include <abstractions/fonts>
+  include <abstractions/dbus-strict>
+  include <abstractions/krathalans-common-gui>
+  include <abstractions/gio-open>
+ 
+
+  #test
+  /usr/lib/gio-launch-desktop Ux,
+
+  # Sandboxing
+  capability sys_admin,
+  capability sys_chroot,
+
+  # Hardware acceleration
+  include <abstractions/krathalans-hwaccel>
+  /etc/libva.conf r,
+
+  include if exists <local/librewolf>
+  
+  /usr/lib/librewolf*/glxtest rCx,
+  profile librewolf-glxtest /usr/lib/librewolf*/glxtest {
+    include <abstractions/base>
+    include <abstractions/krathalans-hwaccel>
+   
+    include if exists <local/librewolf_glxtest>
+    /tmp/librewolf*/.parentlock w,
+    @{HOME}/.librewolf/*/.parentlock w,
+    owner @{HOME}/.{ICE,X}authority r,
+    
+    @{system_share_dirs}/libdrm/amdgpu.ids r,
+    /opt/rocm/lib/libOpenCL.so.* r,
+    @{sys}/bus/pci/devices/ r,
+    @{sys}/devices/pci[0-9]*/**/drm/ r,
+    @{sys}/devices/pci[0-9]*/**/{class,device,vendor} r,
+    
+    deny /etc/{nsswitch.conf,passwd} r,
+  }
+  
+  /usr/lib/librewolf*/vaapitest rCx,
+  profile librewolf-vaapitest /usr/lib/librewolf*/vaapitest {
+    include <abstractions/base>
+    include <abstractions/krathalans-hwaccel>
+
+    include if exists <local/librewolf_vaapitest>
+    /etc/libva.conf r,
+    
+    @{sys}/devices/pci[0-9]*/[0-9]*/{irq,resource} r,
+    
+    /tmp/librewolf*/.parentlock w,
+    @{HOME}/.cache/librewolf/librewolf/*/startupCache/*.{bin,little} r,
+    @{HOME}/.librewolf/librewolf/*/.parentlock w,
+    @{HOME}/.librewolf/librewolf/*/gmp-gmpopenh264/{,**} r,
+    
+    deny /etc/igfx* w,
+    deny network netlink raw,
+  }
+  
+  # AMD
+  @{system_share_dirs}/libdrm/amdgpu.ids r,
+  /opt/rocm/lib/libOpenCL.so.* r,
+
+  @{sys}/bus/pci/devices/ r,
+  @{sys}/devices/pci[0-9]*/**/drm/ r,
+  @{sys}/devices/pci[0-9]*/**/{class,device,vendor} r,
+  @{sys}/devices/pci[0-9]*/[0-9]*/{irq,resource} r,
+
+  #security key
+  @{sys}/bus/ r,
+  @{sys}/class/{,hidraw/} r,
+  /dev/hidraw[0-9] rw,
+  /dev/tty1 rw,
+
+  # Intel
+  /proc/sys/dev/i915/perf_stream_paranoid r,
+  /opt/intel/mediasdk/lib/libmfx.so.* mr,
+  
+  # Include user overrides for krathalans-hwaccel-nvidia
+  include if exists <local/librewolf>
+  
+  # System device access
+  @{sys}/devices/pci[0-9]*/[0-9]*/ r,
+  @{sys}/devices/pci[0-9]*/[0-9]*/**/[0-9]*/ r,
+  @{sys}/devices/pci[0-9]*/**/drm/{,**} r,
+  @{sys}/devices/pci[0-9]*/**/{irq,resource,revision,config,uevent} r,
+  @{sys}/devices/system/cpu/present r,
+  @{sys}/devices/system/cpu/cpufreq/policy[0-9]*/cpuinfo_max_freq r,
+  @{sys}/devices/system/cpu/cpu[0-9]*/cache/index[0-9]*/size r,
+
+  #lsb release
+  deny /usr/bin/lsb_release rx,
+  
+  # Allow access for downloads and uploads
+  include <abstractions/krathalans-downloads>
+
+  # Dconf
+  owner /run/user/*/dconf/ w,
+  owner /run/user/*/dconf/user rw,
+  owner @{HOME}/.config/dconf/user r,
+
+  # Network
+  include <abstractions/krathalans-networking>
+  network netlink raw,
+  network inet dgram,
+  network inet stream,
+  network inet6 dgram,
+  network inet6 stream,
+
+  # Spell checking
+  include <abstractions/enchant>
+
+  # librewolf subprocesses
+  ptrace trace peer=librewolf,
+  /usr/bin/{bash,dash} rix,
+  /usr/bin/keepassxc-proxy Px,
+  # Use px instead of Px to avoid env scrubbing for LD_PRELOAD libEGL.so, libmozsandbox.so
+  /{usr/bin,usr/lib/librewolf*}/librewolf* mrpx,
+  owner /dev/shm/shmfd-* rw,
+  owner /dev/shm/org.librewolf.{,ipc.}* rw,
+
+  # System access
+  /dev/ r,
+  /etc/udev/udev.conf r,
+  @{system_share_dirs}/ r,
+  /usr/lib/librewolf*/{,**} r,
+
+  # Gsettings https://developer.gnome.org/gio/stable/GSettings.html
+  @{system_share_dirs}/glib-[0-9]*/schemas/gschemas.compiled r,
+
+  # Poppler is a PDF rendering library
+  @{system_share_dirs}/poppler/{,**} r,
+
+  # Wayland
+  owner /dev/shm/wayland.mozilla.ipc.* rw,
+
+  # librewolf profiles, cache
+  owner @{HOME}/.librewolf/{,**} rwlk,
+  owner @{HOME}/.cache/librewolf/{,**} rwlk,
+
+  owner @{HOME}/.cache/fontconfig/** r,
+  # systemd-homed
+  /{,var/}run/systemd/userdb/ r,
+
+  # Needed to install addons, export files from addons
+  /tmp/{,**} rwkl,
+  
+  # /proc sandboxing is better handled by bubblewrap
+  @{PROC}/@{pid}/{fd,task}/ r,
+  @{PROC}/@{pid}/{comm,cmdline,cgroup,environ,mountinfo,smaps,statm,stat} r,
+  @{PROC}/@{pid}/task/[0-9]*/{comm,stat} r,
+  @{PROC}/@{pid}/{oom_score_adj,setgroups,gid_map,uid_map} w,
+  
+  # Denied permissions
+  deny capability sys_ptrace,
+  deny /var/cache/ w,
+  deny @{PROC}/sys/kernel/random/boot_id r,
+  
+  # For opening files in other applications -- deny all
+  allow @{system_share_dirs}/applications/{,**} r,
+  deny @{user_share_dirs}/applications/{,**} r,
+  deny /usr/local/share/{,**} r,
+  deny /etc/mailcap r,
+}

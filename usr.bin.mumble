@@ -9,6 +9,8 @@ include <tunables/global>
   include <abstractions/gstreamer>
   include <abstractions/ssl_certs>
 
+  include if exists <local/mumble>
+
   network inet dgram,
   network inet stream,
   network inet6 dgram,

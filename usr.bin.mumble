@@ -1,0 +1,64 @@
+abi <abi/3.0>,
+
+include <tunables/global>
+
+/usr/bin/mumble {
+  include <abstractions/audio>
+  include <abstractions/base>
+  include <abstractions/fonts>
+  include <abstractions/gstreamer>
+  include <abstractions/ssl_certs>
+
+  network inet dgram,
+  network inet stream,
+  network inet6 dgram,
+  network netlink dgram,
+
+  deny /etc/ld.so.cache r,
+  deny @{HOME}/.config/user-dirs.dirs r,
+
+  /etc/host.conf r,
+  /etc/resolv.conf r,
+  /usr/bin/dbus-send r,
+  /usr/bin/mumble mr,
+  /usr/bin/xdg-open rPx -> mumble//xdg-open,
+  
+  @{system_share_dirs}/glvnd/egl_vendor.d/** r,
+  @{system_share_dirs}/qt/translations/*.qm r,
+
+  
+  owner /run/user/@{uid}/MumbleSocket w,
+  owner /run/user/@{uid}/pulse/ r,
+  owner /tmp/mumble_settings.json.tmp rw,
+  owner @{HOME}/.Xauthority r,
+  owner @{HOME}/.config/Mumble/mumble.sqlite rwk,
+  owner @{HOME}/.config/Mumble/mumble.sqlite-journal rw,
+  owner @{HOME}/.config/Mumble/{*,**} rw,
+  owner @{user_share_dirs}/Mumble/Mumble/Plugins/** r,
+  owner @{user_share_dirs}/Mumble/Mumble/Themes/** r,
+
+
+  profile mumble//xdg-open {
+    include <abstractions/xdg-open>
+
+    deny /home/{,**} r,
+    deny /usr/bin/gawk x,
+    deny /usr/bin/uname rx,
+
+    #i don't think mumble should need to scan applications. but if
+    #you want to open more than web-urls you may want to allow this
+    deny @{system_share_dirs}/applications/{,*.desktop} r,
+    deny @{user_share_dirs}/applications/{,*.desktop} r,
+
+    /usr/bin/bash ix,
+    /usr/bin/dbus-send mrix,
+    /usr/bin/dbus-send r,
+    /usr/bin/env mrix,
+    /usr/bin/xdg-open r,
+    /usr/bin/xprop mrix,
+    # applications to open links with
+    /{usr/bin,usr/lib/librewolf*}/librewolf* Px,
+    /{usr/bin,usr/lib/firefox*}/firefox* Px,
+
+  }
+}

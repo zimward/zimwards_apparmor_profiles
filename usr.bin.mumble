@@ -1,3 +1,4 @@
+# Last Modified: Mon Feb 26 08:17:48 2024
 abi <abi/3.0>,
 
 include <tunables/global>
@@ -7,8 +8,9 @@ include <tunables/global>
   include <abstractions/base>
   include <abstractions/fonts>
   include <abstractions/gstreamer>
+  include <abstractions/openssl>
   include <abstractions/ssl_certs>
-
+  include <abstractions/vulkan>
   include if exists <local/mumble>
 
   network inet dgram,
@@ -16,19 +18,28 @@ include <tunables/global>
   network inet6 dgram,
   network netlink dgram,
 
+  deny ptrace read peer=unconfined,
+
   deny /etc/ld.so.cache r,
+  deny /etc/passwd r,
   deny @{HOME}/.config/user-dirs.dirs r,
 
+  #network configuration
+  /etc/gai.conf r,
+  /etc/group r,
   /etc/host.conf r,
+  /etc/hosts r,
+  /etc/machine-id r,
+  /etc/nsswitch.conf r,
+  /etc/pipewire/client-rt.conf.d/ r,
   /etc/resolv.conf r,
   /usr/bin/dbus-send r,
   /usr/bin/mumble mr,
-  /usr/bin/xdg-open rPx -> mumble//xdg-open,
   
+  /usr/bin/xdg-open Cx -> mum-xdg-open,
   @{system_share_dirs}/glvnd/egl_vendor.d/** r,
   @{system_share_dirs}/qt/translations/*.qm r,
-
-  
+  deny owner /proc/@{pid}/task/** rw,
   owner /run/user/@{uid}/MumbleSocket w,
   owner /run/user/@{uid}/pulse/ r,
   owner /tmp/mumble_settings.json.tmp rw,
@@ -40,17 +51,16 @@ include <tunables/global>
   owner @{user_share_dirs}/Mumble/Mumble/Themes/** r,
 
 
-  profile mumble//xdg-open {
+  profile mum-xdg-open {
     include <abstractions/xdg-open>
 
     deny /home/{,**} r,
     deny /usr/bin/gawk x,
     deny /usr/bin/uname rx,
-
-    #i don't think mumble should need to scan applications. but if
-    #you want to open more than web-urls you may want to allow this
-    deny @{system_share_dirs}/applications/{,*.desktop} r,
-    deny @{user_share_dirs}/applications/{,*.desktop} r,
+    
+    #allow search for openers
+    @{system_share_dirs}/applications/*.desktop r,
+    @{user_share_dirs}/applications/{,*.desktop} r,
 
     /usr/bin/bash ix,
     /usr/bin/dbus-send mrix,
@@ -58,9 +68,10 @@ include <tunables/global>
     /usr/bin/env mrix,
     /usr/bin/xdg-open r,
     /usr/bin/xprop mrix,
-    # applications to open links with
-    /{usr/bin,usr/lib/librewolf*}/librewolf* Px,
-    /{usr/bin,usr/lib/firefox*}/firefox* Px,
+
+    #execution permissions for openers
+    include <abstractions/ubuntu-browsers>
+    /{usr/bin,usr/lib/librewolf*}/librewolf Px,
 
   }
 }
